@@ -1,8 +1,8 @@
-const { MongoClient, ObjectId } = require('mongodb');
 const { utilits, connecting } = require('./utilits')
 
 
 class TicTacController{
+
   async createGame(req, res) {
     connecting.openCloseConnect(utilits.createGame(req, res))
   }

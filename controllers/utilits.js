@@ -5,92 +5,105 @@ const { gameMode } = require('./variables')
 class Utilits {
   createGame(req, res) {
     return async (db) => {
-      await this.createGameInner(db, req, res)
+      await utilitsInner.createGame(db, req, res)
     }
   }
 
   deleteGame(req, res) {
     return async (db) => {
-      await this.deleteGameInner(db, req, res)
+      await utilitsInner.deleteGame(db, req, res)
     }
   }
 
   aviableGame(req, res) {
     return async (db) => {
-      await this.aviableGameInner(db, req, res)
+       await utilitsInner.aviableGame(db, req, res)
     }
   }
 
-  async createGameInner(db, req, res) {
-    const data = req.body
-      const isEmpty = matching.isEmpty(data.playerKey, data.gameKey, res) // if data.playerKey or data.gameKey is exist, new keys won't generate
-      if (isEmpty) return      
-      else {
-        const collection = db.collection('games');
-        const playerKey = Date.now().toString()
-        const playerName = data.playerName
-        const gameName = data.gameName
-        const options = data.options
+  
 
-        const value = {
-          uniqKeyPlayer_1: playerKey,
-          uniqKeyPlayer_2: null,
-          game: 'waiting',
-          playerName,
-          gameName,
-          options,
-        }
-      
-        try {
-          const newGame = await dataBase.insertOne(collection, value) // newGame is _id of element
-          res.json({ playerKey, gameKey: newGame.insertedId}).status(200)
-        } catch (err) {
-          res.json({ playerKey: null, gameKey: null, error: err.message}).status(400)
-        }      
-      }
-  }
-  async deleteGameInner(db, req, res) {
-    const { playerKey, gameKey } = req.body
-    // console.log(chalk.green('playerKey =', playerKey, 'gameKey = ', gameKey ))
-    
-    if (!playerKey || !gameKey) {
-      res.json({ error: 'bad request' }).status(400)
-      return 
-    } else {
-      const collection = db.collection('games');
-
-      const findQury = { _id: new ObjectId(gameKey) }
-      const chengeField = { $set: { ['game']: gameMode.CLOSING } }
-      const gameStatus = (await dataBase.findOne(collection, findQury)).game
-      // console.log(chalk.green('start'))
-
-      switch (gameStatus) {
-        case gameMode.PLAYING:
-          await dataBase.updateOne(collection, findQury, chengeField)
-          break
-        default:
-          await dataBase.deleteOne(collection, findQury)
-      res.send('ok').status(200)
-      }
-      console.log(chalk.green('finish'))
-    } 
-  }
-  async aviableGameInner(db, req, res) {
-    
-  }
+  
 
 }
 
-class Matching{
-  isEmpty(playerKey, gameKey, res) {
-    if (playerKey && gameKey) {
-      res.json({ playerKey: null, gameKey:null }).status(200)
-      return true
-    } else if (!playerKey && gameKey) {
-      res.json({ playerKey: data.playerKey , gameKey:null }).status(200)
-      return true
-    } else if (playerKey && !gameKey) {
-      res.json({ playerKey: null , gameKey:data.gameKey }).status(200)
+class UtilitsInner{
+
+  async createGame(db, req, res) {
+    const dataBase = new DataBase(db)
+    const sending = new Sending(res)
+    const matching = new Matching()
+
+    const data = req.body
+    
+    const isEmpty = matching.isExist(data.playerKey, data.gameKey ) // if data.playerKey or data.gameKey is exist, new keys won't generate
+    if (isEmpty) {
+      sending.sendExisting()
+      return
+    }  
+    else {
+      // const collection = db.collection('games');
+      const playerKey = Date.now().toString()
+      const playerName = data.playerName
+      const gameName = data.gameName
+      const options = data.options
+
+      const value = {
+        uniqKeyPlayer_1: playerKey,
+        uniqKeyPlayer_2: null,
+        game: 'waiting',
+        playerName,
+        gameName,
+        options,
+      }
+
+      const newGame = await dataBase.insertOne(value) // newGame is _id of element
+      const dataToFront = { playerKey, gameKey: newGame.insertedId}
+      sending.sendJson(dataToFront)
+    }
+  }
+  async deleteGame(db, req, res) {
+    const dataBase = new DataBase(db)
+    const sending = new Sending(res)
+    const matching = new Matching()
+
+    const data = req.body
+    const isEmpty = matching.isExist(!data.playerKey, !data.gameKey)
+    
+    if (isEmpty) {
+      sending.sendNotExisting()
+      return 
+    } 
+
+      const findQury = { _id: new ObjectId(data.gameKey) }
+      const chengeField = { $set: { ['game']: gameMode.CLOSING } }
+      const gameStatus = (await dataBase.findOne(findQury)).game
+      switch (gameStatus) {
+        case gameMode.PLAYING:
+          await dataBase.updateOne(findQury, chengeField)
+          break
+        default:
+          await dataBase.deleteOne(findQury)
+      // res.send('ok').status(200)
+      }
+      console.log(chalk.green('finish'))
+    
+  }
+  async aviableGame(db, req, res) {
+    const dataBase = new DataBase(db)
+    const sending = new Sending(res)
+
+    const dataToFront = await dataBase.find({})
+    sending.sendJson( dataToFront)
+
+  }
+}
+
+class Matching {
+
+  isExist(playerKey, gameKey) {
+    const condition = playerKey || gameKey
+    if (condition) {
       return true
     }
     return false
@@ -98,26 +111,39 @@ class Matching{
 }
 
 class DataBase{
-  async insertOne(collection, value) {
-    const result = await collection.insertOne(value)
+  constructor(db) {
+    this.db = db
+    this.collection = this.db.collection('games')
+  }
+  async insertOne( value) {
+    const result = await this.collection.insertOne(
+      value
+    )
     return result
   }
-  async findOne(collection) {
-    const result = await collection.findOne()
+  async findOne(findQury) {
+    const result = await this.collection.findOne(
+      findQury
+    )
     return result
   }
-  async updateOne(collection, findQury, chengeField) {
-    const result = await collection.updateOne(
+  async find(findQury) {
+    const result = await this.collection.find(
+      findQury
+    ).toArray()
+    return result
+  }
+  async updateOne( findQury, chengeField) {
+    const result = await this.collection.updateOne(
       findQury,
       chengeField
     )
     return result
   }
-  async deleteOne(collection, findQury ) {
-    const result = await collection.deleteOne(
+  async deleteOne(findQury) {
+    const result = await this.collection.deleteOne(
       findQury
     )
-    console.log("here")
     return result
   }
 }
@@ -142,9 +168,49 @@ class Connecting{
   }
 }
 
+class Sending{
+  constructor(res) {
+    this.res = res
+  }
+  sendJson(data) {
+    try { 
+      this.res.json({...data}).status(200)
+    }
+    catch (error) {
+      this.errorMessage(error)
+    }
+  }
+
+  sendExisting() {
+    try { 
+      this.res.json({existing:"uniq and keys are already existed in client"}).status(200)
+    }
+    catch (error) {
+      this.errorMessage(res, error)
+    }
+  }
+
+  sendNotExisting() {
+    try { 
+      this.res.json({existing:"uniq and keys are't  existed in client"}).status(200)
+    }
+    catch (error) {
+      this.errorMessage(res, error)
+    }
+  }
+
+  errorMessage(res,error) {
+    console.error({ error: `sending error ${error}` })
+    res.json({ error: `sending error ${error}` }).status(400)
+  }
+
+
+}
+
 
 const utilits = new Utilits()
+const utilitsInner = new UtilitsInner()
 const connecting = new Connecting()
-const dataBase = new DataBase()
-const matching = new Matching()
+// const sending = new Sending()
+// const matching = new Matching()
 module.exports = {utilits, connecting}
