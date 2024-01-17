@@ -2,35 +2,11 @@ const { MongoClient, ObjectId } = require('mongodb');
 const chalk = require('chalk')
 const { gameMode } = require('./variables')
 
-class Utilits {
-  createGame(req, res) {
-    return async (db) => {
-      await utilitsInner.createGame(db, req, res)
-    }
-  }
 
-  deleteGame(req, res) {
-    return async (db) => {
-      await utilitsInner.deleteGame(db, req, res)
-    }
-  }
+class Utilits{
 
-  aviableGame(req, res) {
-    return async (db) => {
-       await utilitsInner.aviableGame(db, req, res)
-    }
-  }
-
-  
-
-  
-
-}
-
-class UtilitsInner{
-
-  async createGame(db, req, res) {
-    const dataBase = new DataBase(db)
+  async createGame(req, res) {
+    const dataBase = new DataBase()
     const sending = new Sending(res)
     const matching = new Matching()
 
@@ -62,8 +38,8 @@ class UtilitsInner{
       sending.sendJson(dataToFront)
     }
   }
-  async deleteGame(db, req, res) {
-    const dataBase = new DataBase(db)
+  async deleteGame(req, res) {
+    const dataBase = new DataBase()
     const sending = new Sending(res)
     const matching = new Matching()
 
@@ -75,21 +51,26 @@ class UtilitsInner{
       return 
     } 
 
-      const findQury = { _id: new ObjectId(data.gameKey) }
-      const chengeField = { $set: { ['game']: gameMode.CLOSING } }
-      const gameStatus = (await dataBase.findOne(findQury)).game
-      switch (gameStatus) {
-        case gameMode.PLAYING:
-          await dataBase.updateOne(findQury, chengeField)
-          break
-        default:
-          await dataBase.deleteOne(findQury)
-      // res.send('ok').status(200)
-      }
-      console.log(chalk.green('finish'))
+    const findQury = { _id: new ObjectId(data.gameKey) }
+    const chengeField = { $set: { ['game']: gameMode.CLOSING } }
+    
+    const dataRequest = (await dataBase.findOne(findQury))    
+    const gameStatus = matching.isInObject('game', dataRequest)
+
+    if (!gameStatus) return
+
+  
+    switch (gameStatus) { 
+      case gameMode.PLAYING:
+        await dataBase.updateOne(findQury, chengeField)
+        break
+      default:
+        await dataBase.deleteOne(findQury)
+    }
+
     
   }
-  async aviableGame(db, req, res) {
+  async aviableGame(req, res) {
     const dataBase = new DataBase(db)
     const sending = new Sending(res)
 
@@ -98,7 +79,6 @@ class UtilitsInner{
 
   }
 }
-
 class Matching {
 
   isExist(playerKey, gameKey) {
@@ -108,66 +88,28 @@ class Matching {
     }
     return false
   }
-}
 
-class DataBase{
-  constructor(db) {
-    this.db = db
-    this.collection = this.db.collection('games')
+  isObject(obj) {
+    return Object.prototype.isPrototypeOf(obj)
   }
-  async insertOne( value) {
-    const result = await this.collection.insertOne(
-      value
-    )
-    return result
-  }
-  async findOne(findQury) {
-    const result = await this.collection.findOne(
-      findQury
-    )
-    return result
-  }
-  async find(findQury) {
-    const result = await this.collection.find(
-      findQury
-    ).toArray()
-    return result
-  }
-  async updateOne( findQury, chengeField) {
-    const result = await this.collection.updateOne(
-      findQury,
-      chengeField
-    )
-    return result
-  }
-  async deleteOne(findQury) {
-    const result = await this.collection.deleteOne(
-      findQury
-    )
-    return result
-  }
-}
 
-class Connecting{
-  constructor() {
-    this.mongoUrl = process.env.ATLAS_URI; // data base takin in env.ATLAS_URI
-    this.client = new MongoClient(this.mongoUrl);
-  }
-  async openCloseConnect(func) {
-    try {
-      await this.client.connect(); // Open connection
-      const db = this.client.db(); // Open data base
-      console.log(chalk.cyan('connection is opened'))
-      await func(db) // Execute operation on BD
-    } catch (error) {
-      console.log(chalk.red('error ' , error)) 
-    }finally {
-      await this.client.close(); // Закрываем соединение в блоке finally, чтобы гарантировать, что соединение закроется независимо от того, произошло исключение или нет
-      console.log(chalk.cyan('connection is closed'))
+  isInObject(str, obj) {
+    const cond1 = 'string' === typeof(str)
+    const cond2 = this.isObject(obj)
+    
+    if (cond1 && cond2) {
+      if (str in obj) {    
+        return obj[str]
+      } else {
+        return false
+      }
+    } else {
+      return false
     }
   }
-}
 
+
+}
 class Sending{
   constructor(res) {
     this.res = res
@@ -206,11 +148,76 @@ class Sending{
 
 
 }
+class Connecting {
+  constructor() {
+    this.mongoUrl = process.env.ATLAS_URI; // data base takin in env.ATLAS_URI
+    this.client = new MongoClient(this.mongoUrl);
+  }
+  async openCloseConnect(func) {
+    try {
+      await this.client.connect(); // Open connection
+      const db = this.client.db(); // Open data base
+      await func(db) // Execute operation on BD
+    } catch (error) {
+      console.error(chalk.red("connection is't opened, ",error)) 
+    } finally {
+      await this.client.close()
+    }
+  }
+}
+
+class DataBase extends Connecting{
+  constructor() {
+    super()
+  }
+
+  async insertOne(value) {
+    let result
+    await this.openCloseConnect(async (db) => {
+      result = await this.collection(db).insertOne(value)
+    }) 
+    return result
+  }
+
+  async findOne(findQury) {
+    let result
+    await this.openCloseConnect(async (db) => {
+      result = await this.collection(db).findOne(findQury)
+    })
+    return result
+  }
+
+  async find(findQury) {
+    let result
+    await this.openCloseConnect(async (db) => {
+      result = await this.collection(db).find(findQury).toArray()
+    })
+    return result
+  }
+
+  async updateOne(findQury, chengeField) {
+    let result
+    await this.openCloseConnect(async (db) => { 
+      result = await this.collection(db).updateOne(findQury,chengeField)
+    })
+    return result
+
+  }
+
+  async deleteOne(findQury) {
+    let result
+    await this.openCloseConnect(async (db) => { 
+      result = await this.collection(db).deleteOne(findQury)
+    })
+    return result
+  }
+
+  collection(db) {
+    return db.collection('games')
+  }
+}
+
 
 
 const utilits = new Utilits()
-const utilitsInner = new UtilitsInner()
-const connecting = new Connecting()
-// const sending = new Sending()
-// const matching = new Matching()
-module.exports = {utilits, connecting}
+module.exports = { utilits }
