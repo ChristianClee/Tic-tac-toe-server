@@ -1,18 +1,20 @@
-const { utilits } = require('./utilits')
-
+const { utilits, sending } = require('./utilits')
+// const {objResponse} = require('./variables')
 
 class TicTacController{
 
   async createGame(req, res) {
-    utilits.createGame(req, res)
+    const result = await utilits.createGame(req)
+    sending.sendJson(res, result)
   }
 
   async deleteGame(req, res) {
-    utilits.deleteGame(req, res)
+    const result = await utilits.deleteGame(req)
+    sending.sendJson(res, result)
   }
   
   async aviableGame(req, res) {
-    utilits.aviableGame(req, res)
+    const result = await utilits.aviableGame(req)
   }
 }
 
