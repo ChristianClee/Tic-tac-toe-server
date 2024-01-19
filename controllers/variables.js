@@ -13,6 +13,11 @@ const objResponse = {
     status: 400
     
   },
+  empty: {
+    responce: [],
+    status: 202
+  },
+
   notExistClient: {
     responce: {
       error:
