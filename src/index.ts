@@ -5,9 +5,8 @@ import http from 'http'
 import { WebSocketServer } from "ws";
 import  express from "express";
 import cors from "cors";
-import { router } from "./routes/ticTacRoutes.ts";
-import isOnline from "is-online";
-import { WebSocketHeandler } from "./websoket/handleWebsocket.ts";
+import { router } from "./routes/ticTacRoutes.js";
+import { WebSocketHeandler } from "./websoket/handleWebsocket.js";
 
 
 

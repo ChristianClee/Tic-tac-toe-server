@@ -1,5 +1,5 @@
 import express, { Router } from 'express'
-import { ticTacController } from '../controllers/tic-tac-controller.ts'
+import { ticTacController } from '../controllers/tic-tac-controller.js'
 
 export const router: Router = express.Router();
 
