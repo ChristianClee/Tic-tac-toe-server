@@ -1,33 +1,23 @@
 import { WebSocketServer, WebSocket } from "ws";
-import EventEmitter from "events"
-import {v1} from "uuid"
+import EventEmitter from "events";
+import { v1 } from "uuid";
 import http from "http";
-import isOnline from 'is-online'
+import isOnline from "is-online";
 import { error } from "console";
+import { database, prepare } from "../mongo/db.js";
+
+import { Options_I, MessageSocket_E, Client_I, GameData_I } from "./types.js";
 
 
 
-interface Client_I {
-  playerKey: string;
-  gameKey: string;
-}
-enum MessageSocket_E {
-  CONNECTION = "connection",
-  GETKEYS = "getkeys",
-}
 
 
-class Clients {
-  public games: any[];
-  public game: { playerKey: string; gameKey: string } | null
 
-  constructor() {
-    this.games = [];
-    this.game = null
-  }
-}
 
-const myEmitter = new EventEmitter();
+
+
+
+
 
 export class WebSocketHeandler {
   private wss: WebSocketServer;
@@ -42,17 +32,13 @@ export class WebSocketHeandler {
   private _initialNewClient() {
     this.wss.on("connection", (ws, req) => {
       const client = this._criateClient();
-      this._disconect(ws)
-      // const client = this._errorEvent(ws);
+      console.log( 'created',  client);
+      this._disconect(ws);
       this._messageEvent(ws, client);
       this._closeEvent(ws, client);
     });
   }
 
-  private _addClientToList(client: Client_I) {
-    this.clients.push(client);
-    console.log(this.clients);
-  }
   private _criateClient(): Client_I {
     const playerKey: string = v1();
     const gameKey: string = Date.now().toString();
@@ -61,21 +47,21 @@ export class WebSocketHeandler {
   }
   private _closeEvent(ws: WebSocket, client: Client_I) {
     ws.on("close", () => {
-      this.clients = this.clients.filter((i) => {
-        const _i = JSON.stringify(i);
-        const _client = JSON.stringify(client);
-        return _i !== _client;
-      });
-      console.log(this.clients);
+      database.deleteOne({ _id: client.gameKey });
     });
+    
   }
-  private _messageEvent(ws: WebSocket, client: Client_I) {
-    ws.on("message", (message) => {
-      const message_ = message.toString();
-      switch (message_) {
-        case MessageSocket_E.GETKEYS:
-          this._addClientToList(client);
-          this._sendMessage(ws, client);
+  private async _messageEvent(ws: WebSocket, client: Client_I) {
+    ws.on("message", async (message: string) => {
+      const message_: [MessageSocket_E, any] = JSON.parse(message);
+      
+      switch (message_[0]) {
+        case MessageSocket_E.CREATE:
+          const date = prepare.addUniqKeys(message_[1], client);
+          const res = await database.insertOne(date);
+          if(res){
+            this._sendMessage(ws, client);
+          }
       }
     });
   }
@@ -83,37 +69,18 @@ export class WebSocketHeandler {
     setInterval(() => {
       isOnline()
         .then((resp) => {
-          if (resp) return
+          if (resp) return;
           else ws.terminate();
         })
-        .catch((err) =>
-          console.error("error checking of connection: ", error)
-        );
-    }, 15000)
-
+        .catch((err) => console.error("error checking of connection: ", error));
+    }, 15000);
   }
   private _errorEvent(ws: WebSocket) {
     ws.on("error", (error: Error) => {
       console.error("this._error was worked");
     });
   }
-
   private _sendMessage(ws: WebSocket, client: Client_I) {
     ws.send(JSON.stringify(client));
   }
 }
-
-
-  // const checkInternetConnection = async () => {
-  //   try {
-  //     const online = await isOnline();
-  //     if (!online) {
-  //       console.log(
-  //         "Интернет-соединение потеряно. Закрываем WebSocket соединение."
-  //       );
-  //       ws.terminate(); // Закрываем соединение
-  //     }
-  //   } catch (error) {
-  //     console.error("Ошибка при проверке интернет-соединения:", error);
-  //   }
-  // };

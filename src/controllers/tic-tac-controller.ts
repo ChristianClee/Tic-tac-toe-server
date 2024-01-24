@@ -1,23 +1,14 @@
 import { Request, Response } from "express";
-import { utilits, sending } from "./utilits.js";
-
-
+// import { utilits, sending } from "./utilits.js";
+import { database,prepare } from "../mongo/db.js"
+import {GameData_I} from "../websoket/types.js"
 
 
 class TicTacController {
-  async createGame(req: Request, res: Response) {
-    // post method
-
-  }
-
-  async deleteGame(req: Request, res: Response) {
-    // post method
-
-  }
-
-  async aviableGame(req: Request, res: Response) {
-    // get method
-
+  async getAllGame(req: Request, res: Response) {
+    const data = await database.find({});
+    prepare.getCurrentVaslue(data, ["gameName", "_id"]);
+    res.json(data).status(200);
   }
 }
 

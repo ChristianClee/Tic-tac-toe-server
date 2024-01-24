@@ -4,9 +4,9 @@ import { ticTacController } from '../controllers/tic-tac-controller.js'
 export const router: Router = express.Router();
 
 
-router.post('/createGame', ticTacController.createGame)
-router.post('/deleteGame', ticTacController.deleteGame)
-router.get('/aviableGame', ticTacController.aviableGame)
+
+
+router.get("/getAllGame", ticTacController.getAllGame);
 
 
 
