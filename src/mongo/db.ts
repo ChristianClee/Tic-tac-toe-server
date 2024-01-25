@@ -1,9 +1,14 @@
 import { config } from "dotenv";
 config();
 import { MongoClient, Db } from "mongodb";
+import {
+  CreateGame_T,
+  Client_I,
+  GameData_I,
+  GameStatus_E,
+  MessageSocket_E,
+} from "../websoket/types.js";
 
-import { CreateGame_T, Client_I, GameData_I, GameStaus_E } from "../websoket/types.js";
-import { strict } from "assert";
 
 
 
@@ -41,7 +46,7 @@ class DataBase extends Connecting {
         //@ts-ignore
         result = await this.collection(db).insertOne(value);
       } catch (e) {
-        console.error('error Insert db ', e);
+        console.error("error Insert db ", e);
         result = false;
       }
     });
@@ -61,7 +66,7 @@ class DataBase extends Connecting {
   //   return result;
   // }
 
-  async find(findQury:any) {
+  async find(findQury: any) {
     let result: GameData_I[] | [];
     await this.openCloseConnect(async (db) => {
       try {
@@ -76,15 +81,36 @@ class DataBase extends Connecting {
     return result;
   }
 
-  // async updateOne(findQury, chengeField) {
-  //   let result;
-  //   await this.openCloseConnect(async (db) => {
-  //     result = await this.collection(db).updateOne(findQury, chengeField);
-  //   });
-  //   return result;
-  // }
+  async getOneField(id: { _id: string }, name: string) {
+    const findQur = { projection: { _id: 0, [name]: 1 } };
+    let result: GameStatus_E;
+    await this.openCloseConnect(async (db) => {
+      try {
+        // @ts-ignore
+        const responce = await this.collection(db).findOne(id, findQur);
+        // @ts-ignore
+        result = responce[name];
+      } catch (e) {
+        console.error("Error in data base method <getOneField>");
+      }
+    });
+    //@ts-ignore
+    return result;
+  }
 
-  async deleteOne(findQury:{_id: string}) {
+  async updateOne(findQury: { _id: string }, chengeFields: {}) {
+
+    const chengeFields_ = { $set: chengeFields };
+    let result;
+    await this.openCloseConnect(async (db) => {
+      //@ts-ignore
+      result = await this.collection(db).updateOne(findQury, chengeFields_);
+      console.log("updateOne");
+    });
+    return result;
+  }
+
+  async deleteOne(findQury: { _id: string }) {
     let result;
     await this.openCloseConnect(async (db) => {
       //@ts-ignore
@@ -101,34 +127,45 @@ class DataBase extends Connecting {
 class Prepere {
   constructor() {}
 
-  addUniqKeys(gameDate: CreateGame_T, uniqKeys: Client_I): GameData_I {
+  public addUniqKeys(gameDate: CreateGame_T, uniqKeys: Client_I): GameData_I {
     const result = {
       ...gameDate,
       _id: uniqKeys.gameKey,
       playerOne: uniqKeys.playerKey,
       playerTwo: null,
-      gameStaus: GameStaus_E.WAITING,
+      gameStatus: GameStatus_E.WAITING,
       playerTwoName: null
     };
     return result;
   }
 
-  getCurrentVaslue(data: GameData_I[], arg: string[]) {
+  public getCurrentVaslue(data: GameData_I[], arg: string[]) {
     let result: any[] = []
     data.map(item => {
       let obj = {} 
       arg.forEach(elem => (
-        //@ts-ignore
+        // @ts-ignore
         obj = {...obj, [elem]: item[elem] }
       ))
       result.push(obj);
     })
-
-    result.map(item => {
-      // const get time = item._id
+    return result.map(item => {
+      return {...item, time: this.getTime(item._id)}
     })
+  }
 
+  private getTwo(val: string | number) {
+    let res = String(val)
+    return  res.length < 2? "0" + res : res  
+  }
 
+  private getTime(str:string):string {
+    const num: number = parseInt(str);
+    const date = new Date(num)
+    let hour = this.getTwo(date.getHours()); 
+    let minuet = this.getTwo(date.getMinutes()) 
+    let second = this.getTwo(date.getSeconds())
+    return `${hour}:${minuet}:${second}`
   }
 }
 

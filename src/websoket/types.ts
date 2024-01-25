@@ -1,5 +1,7 @@
 export enum MessageSocket_E {
   CREATE = "creategame",
+  JOIN = "joingame",
+  DELETE = "deletegame",
 }
 enum Tic_tac_modes_E {
   ONE = "one",
@@ -10,10 +12,10 @@ enum Winner_E {
   ZERRO = "zerro",
 }
 
-export enum GameStaus_E {
+export enum GameStatus_E {
   PLAYING = "playing",
   CLOSING = "closing",
-  WAITING = "waiting",
+  WAITING = "waiting", 
 }
 
 interface Sell_I {
@@ -78,5 +80,5 @@ export interface GameData_I extends CreateGame_T {
   playerOne: string | null;
   playerTwo: string | null;
   playerTwoName: string | null;
-  gameStaus: GameStaus_E;
+  gameStatus: GameStatus_E;
 }
