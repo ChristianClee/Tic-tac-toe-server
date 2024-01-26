@@ -17,6 +17,9 @@ export enum GameStatus_E {
   CLOSING = "closing",
   WAITING = "waiting", 
 }
+export type GameStatusConnect_T = {
+  gameStatus: GameStatus_E;
+};
 
 interface Sell_I {
   key: string; // it is unique value that was generated via Math.random module

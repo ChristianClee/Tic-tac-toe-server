@@ -83,7 +83,7 @@ class DataBase extends Connecting {
 
   async getOneField(id: { _id: string }, name: string) {
     const findQur = { projection: { _id: 0, [name]: 1 } };
-    let result: GameStatus_E;
+    let result: string | null;
     await this.openCloseConnect(async (db) => {
       try {
         // @ts-ignore
@@ -92,6 +92,7 @@ class DataBase extends Connecting {
         result = responce[name];
       } catch (e) {
         console.error("Error in data base method <getOneField>");
+        result = null
       }
     });
     //@ts-ignore
